@@ -21,7 +21,7 @@ import (
 
 	"github.com/go-kit/kit/log"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/satori/go.uuid"
+	// "github.com/satori/go.uuid"
 )
 
 const (
@@ -36,10 +36,18 @@ const (
 
 // Metric descriptors.
 var (
+
+	// 	MariaDB [(none)]> SHOW SLAVE HOSTS;
+	// +-----------+----------------+------+-----------+
+	// | Server_id | Host           | Port | Master_id |
+	// +-----------+----------------+------+-----------+
+	// |       102 | 192.168.2.1    | 3306 |       101 |
+	// +-----------+----------------+------+-----------+
+
 	SlaveHostsInfo = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, heartbeat, "mysql_slave_hosts_info"),
 		"Information about running slaves",
-		[]string{"server_id", "slave_host", "port", "master_id", "slave_uuid"}, nil,
+		[]string{"server_id", "slave_host", "port", "master_id"}, nil,
 	)
 )
 
@@ -74,33 +82,33 @@ func (ScrapeSlaveHosts) Scrape(ctx context.Context, db *sql.DB, ch chan<- promet
 	var host string
 	var port string
 	var rrrOrMasterId string
-	var slaveUuidOrMasterId string
+	// var slaveUuidOrMasterId string
 
 	// Depends on the version of MySQL being scraped
 	var masterId string
-	var slaveUuid string
+	// var slaveUuid string
 
 	for slaveHostsRows.Next() {
 		// Newer versions of mysql have the following
 		// 		Server_id, Host, Port, Master_id, Slave_UUID
 		// Older versions of mysql have the following
 		// 		Server_id, Host, Port, Rpl_recovery_rank, Master_id
-		err := slaveHostsRows.Scan(&serverId, &host, &port, &rrrOrMasterId, &slaveUuidOrMasterId)
+		err := slaveHostsRows.Scan(&serverId, &host, &port, &rrrOrMasterId)
 		if err != nil {
 			return err
 		}
 
 		// Check to see if slaveUuidOrMasterId resembles a UUID or not
 		// to find out if we are using an old version of MySQL
-		if _, err = uuid.FromString(slaveUuidOrMasterId); err != nil {
-			// We are running an older version of MySQL with no slave UUID
-			slaveUuid = ""
-			masterId = slaveUuidOrMasterId
-		} else {
-			// We are running a more recent version of MySQL
-			slaveUuid = slaveUuidOrMasterId
-			masterId = rrrOrMasterId
-		}
+		// if _, err = uuid.FromString(slaveUuidOrMasterId); err != nil {
+		// 	// We are running an older version of MySQL with no slave UUID
+		// 	slaveUuid = ""
+		// 	masterId = slaveUuidOrMasterId
+		// } else {
+		// We are running a more recent version of MySQL
+		// slaveUuid = slaveUuidOrMasterId
+		masterId = rrrOrMasterId
+		// }
 
 		ch <- prometheus.MustNewConstMetric(
 			SlaveHostsInfo,
@@ -110,7 +118,7 @@ func (ScrapeSlaveHosts) Scrape(ctx context.Context, db *sql.DB, ch chan<- promet
 			host,
 			port,
 			masterId,
-			slaveUuid,
+			// slaveUuid,
 		)
 	}
 
